@@ -1,0 +1,87 @@
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  PORT: "3000"
+  APP_URL: ${APP_URL:?}
+  DATABASE_URL: postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_64_POSTGRES}@postgres:5432/alhinnawi
+  DATABASE_MIGRATION_URL: postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_64_POSTGRES}@postgres:5432/alhinnawi
+  DB_POOL_MAX: ${DB_POOL_MAX:-10}
+  DB_IDLE_TIMEOUT: ${DB_IDLE_TIMEOUT:-30000}
+  DB_CONNECTION_TIMEOUT: ${DB_CONNECTION_TIMEOUT:-5000}
+  BETTER_AUTH_SECRET: ${SERVICE_BASE64_64_AUTH}
+  BETTER_AUTH_URL: ${APP_URL:?}
+  BETTER_AUTH_TRUSTED_ORIGINS: ${APP_URL:?}
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+  MEDIA_ROOT: /data/media
+  MEDIA_PUBLIC_BASE_URL: ${APP_URL:?}/api/media
+  IMAGE_MAX_SIZE_MB: ${IMAGE_MAX_SIZE_MB:-20}
+  VIDEO_MAX_SIZE_MB: ${VIDEO_MAX_SIZE_MB:-150}
+  ANALYTICS_SESSION_SECRET: ${SERVICE_BASE64_64_ANALYTICS}
+  CRON_SECRET: ${SERVICE_BASE64_64_CRON}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_FROM: ${SMTP_FROM:-}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  S3_REGION: ${S3_REGION:-auto}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alhinnawi
+      POSTGRES_USER: ${SERVICE_USER_POSTGRES}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_64_POSTGRES}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  web:
+    build: *app-build
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-مدير النظام}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:?}
+      SUPER_ADMIN_PASSWORD: ${SERVICE_PASSWORD_64_ADMIN}
+    command: ["sh", "-c", "pnpm db:migrate && pnpm db:seed && pnpm create-super-admin && exec node server.js"]
+    expose:
+      - "3000"
+    volumes:
+      - media-data:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  media-worker:
+    build: *app-build
+    restart: unless-stopped
+    environment: *app-environment
+    command: ["pnpm", "worker:media"]
+    volumes:
+      - media-data:/data/media
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    exclude_from_hc: true
+
+volumes:
+  postgres-data:
+  media-data:

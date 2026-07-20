@@ -70,7 +70,7 @@ docker build -t al-hinnawi .
 
 الصورة multi-stage مبنية على Debian slim، تعمل كمستخدم غير root على `0.0.0.0:3000`، وتضم FFmpeg وhealthcheck. شغّل web بالأمر الافتراضي، وworker من الصورة نفسها بالأمر `pnpm worker:media`. التفاصيل الدقيقة في [دليل Coolify](docs/DEPLOY_COOLIFY.md).
 
-لإعداد أول نشر بأقصر مسار، استخدم [قائمة Coolify السريعة](docs/COOLIFY_QUICKSTART.md) وانسخ أسماء المتغيرات من `coolify.env.example`. لا ترفع القيم السرية إلى GitHub.
+للنشر الآلي الكامل استخدم Docker Compose Build Pack مع `docker-compose.coolify.yml`؛ سينشئ PostgreSQL والويب والـworker والـvolumes ويطبق migrations وseed وينشئ المدير تلقائياً. اتبع [قائمة Coolify السريعة](docs/COOLIFY_QUICKSTART.md). لا ترفع القيم السرية إلى GitHub.
 
 ## البنية
 

@@ -1,75 +1,69 @@
-# إعداد Coolify السريع
+# نشر آلي كامل على Coolify
 
-هذه الخطوات مخصصة لربط مستودع GitHub بعد رفعه. لا تحتاج إلى تعديل أوامر البناء داخل المستودع.
+استخدم `docker-compose.coolify.yml` بدلاً من إنشاء web وقاعدة البيانات والـworker كموارد منفصلة. ينشئ Stack واحد تلقائياً:
 
-## 1. PostgreSQL
+- PostgreSQL 17 مع volume دائمة.
+- تطبيق Next.js مع volume دائمة للوسائط.
+- Media Worker يشارك volume الوسائط نفسها.
+- migrations وseed عربي قبل تشغيل الموقع.
+- أول حساب `super_admin` بطريقة idempotent.
+- مستخدم وكلمة مرور قاعدة البيانات وأسرار التطبيق وكلمة مرور المدير عبر Magic Variables من Coolify.
 
-1. داخل Project اختر **New Resource → PostgreSQL**.
-2. استخدم PostgreSQL 17، واترك المنفذ غير مكشوف للعامة.
-3. فعّل التخزين الدائم والنسخ الاحتياطي المجدول.
-4. بعد التشغيل انسخ **Internal URL**؛ هذه هي قيمة `DATABASE_URL`.
+## إعداد المورد
 
-## 2. تطبيق الويب
-
-أنشئ Application من مستودع GitHub بهذه القيم:
+من **New Resource → Application → GitHub App** اختر المستودع ثم أدخل:
 
 | الحقل | القيمة |
 |---|---|
-| Build Pack | `Dockerfile` |
+| Repository | `hinawi` |
 | Branch | `main` |
+| Build Pack | `Docker Compose` |
 | Base Directory | `/` |
-| Dockerfile Location | `/Dockerfile` |
-| Port Exposes | `3000` |
-| Health Check Path | `/api/health` |
-| Domain | نطاق HTTPS النهائي |
+| Docker Compose Location | `/docker-compose.coolify.yml` |
 
-انسخ أسماء المتغيرات من `coolify.env.example`، واستبدل القيم الوصفية. يجب أن تتطابق `APP_URL` و`BETTER_AUTH_URL` مع النطاق النهائي، دون `/` في النهاية.
+لا تختر Nixpacks أو Dockerfile لهذا المسار الآلي.
 
-أنشئ الأسرار محليًا؛ استخدم نتيجة مختلفة لكل متغير:
+## القيم الوحيدة المطلوبة
 
-```bash
-openssl rand -base64 48
+بعد أن يقرأ Coolify ملف Compose سيعرض المتغيرات. اضبط:
+
+```dotenv
+APP_URL=https://your-domain.example
+SUPER_ADMIN_EMAIL=your-email@example.com
+SUPER_ADMIN_NAME=اسم المدير
 ```
 
-عند استخدام التخزين المحلي وكان web والـworker موردين منفصلين، استخدم **Bind Mount** لهما على الخادم نفسه، مثلاً Source Path `/data/alhinnawi/media` وDestination Path `/data/media`. جهّز مسار الخادم بملكية UID/GID `1001:1001` كي يستطيع مستخدم الحاوية غير الجذري الكتابة. لا تستخدم Volume عادية لكل مورد لأن Coolify يعزل أسماء volumes حسب UUID المورد. لا تشغّل أكثر من replica واحدة، وخذ نسخة احتياطية من مسار الخادم. للإنتاج متعدد الخوادم أو replicas استخدم S3 بدلاً من المشاركة المحلية.
+`APP_URL` يجب أن يكون رابط HTTPS النهائي بدون `/` في النهاية. بقية القيم الأساسية يولدها Coolify تلقائياً، ومنها:
 
-## 3. أول نشر وتهيئة البيانات
+- `SERVICE_USER_POSTGRES`
+- `SERVICE_PASSWORD_64_POSTGRES`
+- `SERVICE_BASE64_64_AUTH`
+- `SERVICE_BASE64_64_ANALYTICS`
+- `SERVICE_BASE64_64_CRON`
+- `SERVICE_PASSWORD_64_ADMIN`
 
-نفّذ أول Deploy. بعد أن يصبح التطبيق Running، افتح Terminal الخاص به ونفّذ بالترتيب:
+احتفظ بالقيم المولدة ولا تغيّرها بعد بدء الاستخدام. كلمة مرور الدخول الأولى هي القيمة الظاهرة عند كشف `SERVICE_PASSWORD_64_ADMIN` في Environment Variables.
 
-```bash
-pnpm deploy:check
-pnpm db:migrate
-pnpm db:seed
-SUPER_ADMIN_NAME='اسم المدير' SUPER_ADMIN_EMAIL='admin@example.com' SUPER_ADMIN_PASSWORD='كلمة مرور طويلة وفريدة' pnpm create-super-admin
+## النطاق والنشر
+
+عيّن النطاق لخدمة `web` بهذا الشكل حتى يعرف Coolify أن المنفذ الداخلي هو 3000:
+
+```text
+https://your-domain.example:3000
 ```
 
-أزل متغيرات `SUPER_ADMIN_*` إن أضفتها في واجهة Coolify. لا تشغّل أمر إنشاء المدير مرة ثانية لنفس البريد.
+المنفذ `3000` هنا داخلي فقط؛ الزائر يستخدم HTTPS العادي دون كتابة المنفذ. لا تعيّن domain لخدمتي `postgres` أو `media-worker` ولا تنشر منافذ لهما.
 
-بعد نجاح أول تهيئة ضع هذا في **Pre-deployment Command** للتحديثات اللاحقة:
+اضغط **Deploy**. تسلسل البداية تلقائي:
 
-```bash
-pnpm db:migrate
+```text
+PostgreSQL healthy → migrations → seed → super admin → web healthy → media worker
 ```
 
-ملاحظة: وفق آلية Coolify الحالية، أمر pre-deployment يعمل داخل الحاوية القائمة؛ لذلك لا نعتمد عليه وحده لإنشاء قاعدة أول نشر.
+أول بناء أبطأ من التحديثات لأنه يبني صورة Node ويثبت FFmpeg. بعد النجاح افتح `/api/health` ثم `/admin/login`.
 
-## 4. Media Worker
+## الاستمرارية والتحديثات
 
-أنشئ Application ثانية من المستودع نفسه وبدون Domain. استخدم Dockerfile والمتغيرات نفسها ووصّل Bind Mount بنفس Source Path وDestination Path المستخدمين للويب عند التخزين المحلي. غيّر Start Command إلى:
+`postgres-data` و`media-data` معرفتان كـnamed volumes داخل Stack؛ تحديث الصورة أو إعادة تشغيل الخدمات لا يحذف البيانات. لا تستخدم **Delete Storage** أو حذف volumes عند إعادة النشر. migrations وseed وإنشاء المدير آمنة للتشغيل المتكرر، ولا يعاد ضبط كلمة مرور مدير موجود.
 
-```bash
-pnpm worker:media
-```
-
-عطّل health check لهذا المورد لأنه لا يقدم خادم HTTP. اترك web application على الأمر الافتراضي الموجود في Dockerfile.
-
-## 5. فحص التسليم
-
-1. افتح `/api/health` وتأكد من `status: ok` و`database: ok`.
-2. سجّل الدخول من `/admin/login`.
-3. ارفع صورة وتأكد أن worker يحول حالتها إلى `ready`.
-4. افتح `/robots.txt` و`/sitemap.xml`.
-5. فعّل Auto Deploy من GitHub فقط بعد نجاح أول نشر.
-
-إذا فشل البناء بسبب الذاكرة، خصص للبناء 2GB RAM على الأقل أو استخدم Build Server منفصلاً. لا تضع `DATABASE_URL` أو مفاتيح S3 كـDocker build arguments؛ اجعلها runtime environment variables فقط.
+فعّل Auto Deploy من GitHub بعد نجاح أول نشر. فعّل أيضاً نسخة احتياطية خارج الخادم لقاعدة البيانات ووسائط `/data/media`؛ الـvolume تحمي من إعادة النشر لكنها ليست نسخة احتياطية ضد فقد الخادم.
