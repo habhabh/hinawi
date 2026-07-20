@@ -32,7 +32,7 @@ x-app-environment: &app-environment
 
 services:
   postgres:
-    image: postgres:17-bookworm
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: alhinnawi
@@ -58,7 +58,7 @@ services:
       SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-مدير النظام}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:?}
       SUPER_ADMIN_PASSWORD: ${SERVICE_PASSWORD_64_ADMIN}
-    command: ["sh", "-c", "pnpm db:migrate && pnpm db:seed && pnpm create-super-admin && exec node server.js"]
+    command: ["sh", "-c", "node .ops/migrate.mjs && node .ops/seed.mjs && node .ops/create-super-admin.mjs && exec node server.js"]
     expose:
       - "3000"
     volumes:
@@ -72,7 +72,7 @@ services:
     pull_policy: never
     restart: unless-stopped
     environment: *app-environment
-    command: ["pnpm", "worker:media"]
+    command: ["node", ".ops/media-worker.mjs"]
     volumes:
       - media-data:/data/media
     depends_on:

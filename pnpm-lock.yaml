@@ -38,6 +38,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@types/pg@8.20.0)(kysely@0.29.4)(pg@8.22.0)
+      esbuild:
+        specifier: latest
+        version: 0.28.1
       lucide-react:
         specifier: latest
         version: 1.25.0(react@19.2.7)

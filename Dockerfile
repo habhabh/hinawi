@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
-FROM node:24-bookworm-slim AS base
+FROM node:24-alpine AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
-RUN npm install --global pnpm@11.9.0
+RUN apk add --no-cache libc6-compat \
+  && npm install --global pnpm@11.9.0
 WORKDIR /app
 
 FROM base AS dependencies
@@ -14,22 +15,25 @@ ENV NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--max-old-space-size=1024
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build \
+  && mkdir -p .ops \
+  && pnpm exec esbuild src/db/migrate.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/migrate.mjs \
+  && pnpm exec esbuild src/scripts/seed.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/seed.mjs \
+  && pnpm exec esbuild src/scripts/create-super-admin.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/create-super-admin.mjs \
+  && pnpm exec esbuild src/workers/media-worker.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --external:sharp --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/media-worker.mjs \
   && rm -rf .next/cache
 
-FROM base AS runner
+FROM node:24-alpine AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 MEDIA_ROOT=/data/media
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl && rm -rf /var/lib/apt/lists/* \
-  && groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs --create-home nextjs \
+RUN apk add --no-cache libc6-compat ffmpeg \
+  && addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs \
   && mkdir -p /data/media && chown -R nextjs:nodejs /data/media
 WORKDIR /app
-COPY --from=dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Worker, migrations and operational scripts use the same reviewed source and dependencies.
-COPY --from=builder --chown=nextjs:nodejs /app/src ./src
-COPY --from=builder --chown=nextjs:nodejs /app/package.json /app/tsconfig.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/.ops ./.ops
+COPY --from=builder --chown=nextjs:nodejs /app/src/db/migrations ./src/db/migrations
 USER nextjs
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD curl --fail http://127.0.0.1:3000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget --quiet --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 CMD ["node", "server.js"]
