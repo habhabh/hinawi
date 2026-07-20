@@ -55,6 +55,8 @@ export async function getSellerPage(slug: string, categorySlug?: string, cursor?
       branch: sellers.branch,
       phoneE164: sellers.phoneE164,
       whatsappE164: sellers.whatsappE164,
+      email: sellers.email,
+      showEmail: sellers.showEmail,
       customWhatsappMessage: sellers.customWhatsappMessage,
       seoTitle: sellers.seoTitle,
       seoDescription: sellers.seoDescription,
@@ -74,7 +76,7 @@ export async function getSellerPage(slug: string, categorySlug?: string, cursor?
     .innerJoin(projectCategories, eq(projectCategories.categoryId, categories.id))
     .innerJoin(sellerProjects, and(eq(sellerProjects.projectId, projectCategories.projectId), eq(sellerProjects.sellerId, seller.id)))
     .innerJoin(projects, eq(projects.id, sellerProjects.projectId))
-    .where(and(eq(categories.isActive, true), eq(sellerCategories.isVisible, true), eq(sellerProjects.isVisible, true), eq(projects.status, "published")))
+    .where(and(eq(categories.isActive, true), isNull(categories.archivedAt), eq(sellerCategories.isVisible, true), eq(sellerProjects.isVisible, true), eq(projects.status, "published"), isNull(projects.archivedAt)))
     .orderBy(asc(categories.sortOrder));
 
   const selectedCategory = categorySlug ? availableCategories.find((item) => item.slug === categorySlug) : undefined;
@@ -188,13 +190,13 @@ export async function getCategoryPage(slug: string) {
     .select({ id: projects.id, slug: projects.slug, title: projects.title, summary: projects.summary })
     .from(projectCategories)
     .innerJoin(projects, eq(projects.id, projectCategories.projectId))
-    .where(and(eq(projectCategories.categoryId, rows[0].id), eq(projects.status, "published")))
+    .where(and(eq(projectCategories.categoryId, rows[0].id), eq(projects.status, "published"), isNull(projects.archivedAt)))
     .orderBy(desc(projects.publishedAt));
   return { category: rows[0], projects: works };
 }
 
 export async function publicCounts() {
-  const [sellerCount] = await db.select({ value: count() }).from(sellers).where(eq(sellers.isActive, true));
-  const [projectCount] = await db.select({ value: count() }).from(projects).where(eq(projects.status, "published"));
+  const [sellerCount] = await db.select({ value: count() }).from(sellers).where(and(eq(sellers.isActive, true), isNull(sellers.archivedAt)));
+  const [projectCount] = await db.select({ value: count() }).from(projects).where(and(eq(projects.status, "published"), isNull(projects.archivedAt)));
   return { sellers: sellerCount.value, projects: projectCount.value };
 }
