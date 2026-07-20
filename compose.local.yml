@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: alhinnawi
+      POSTGRES_USER: alhinnawi
+      POSTGRES_PASSWORD: alhinnawi
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alhinnawi -d alhinnawi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    env_file: .env.local
+    environment:
+      DATABASE_URL: postgresql://alhinnawi:alhinnawi@postgres:5432/alhinnawi
+      STORAGE_DRIVER: local
+      MEDIA_ROOT: /data/media
+    ports:
+      - "3000:3000"
+    volumes:
+      - media-data:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  media-worker:
+    build: .
+    command: ["./node_modules/.bin/tsx", "src/workers/media-worker.ts"]
+    env_file: .env.local
+    environment:
+      DATABASE_URL: postgresql://alhinnawi:alhinnawi@postgres:5432/alhinnawi
+      STORAGE_DRIVER: local
+      MEDIA_ROOT: /data/media
+    volumes:
+      - media-data:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  media-data:

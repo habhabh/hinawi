@@ -1,0 +1,2 @@
+import type { MetadataRoute } from "next";
+export default function manifest(): MetadataRoute.Manifest { return { name: "الحناوي للديكور", short_name: "الحناوي", description: "مكتبة أعمال الحناوي للديكور والخزائن", start_url: "/", display: "standalone", background_color: "#F7F3EC", theme_color: "#7B5E46", lang: "ar", dir: "rtl", icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }, { src: "/maskable-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" }] }; }

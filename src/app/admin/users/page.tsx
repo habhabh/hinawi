@@ -1,0 +1,3 @@
+import { adminLists } from "@/db/queries/admin";
+import { requirePermission } from "@/lib/auth/session";
+export default async function UsersPage() { await requirePermission("users:manage"); const rows = await adminLists.users(); return <><h1>المستخدمون</h1><p className="muted">أنشئ أول حساب عبر سكربت create-super-admin، ثم استخدم Better Auth Admin API لإدارة الحسابات.</p><div className="table-wrap"><table><thead><tr><th>الاسم</th><th>البريد</th><th>الدور</th><th>الحالة</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.email}</td><td>{row.role}</td><td>{row.banned ? "معطل" : "نشط"}</td></tr>)}</tbody></table></div></>; }

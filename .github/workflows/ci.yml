@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_DB: alhinnawi_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d alhinnawi_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/alhinnawi_test
+      BETTER_AUTH_SECRET: ci-only-secret-at-least-thirty-two-characters
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      APP_URL: http://127.0.0.1:3000
+      STORAGE_DRIVER: local
+      MEDIA_ROOT: /tmp/alhinnawi-media
+      MEDIA_PUBLIC_BASE_URL: http://127.0.0.1:3000/api/media
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 11.9.0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:unit
+      - run: RUN_DB_TESTS=1 pnpm test:integration
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e --project=mobile
+      - run: docker build -t al-hinnawi:${{ github.sha }} .

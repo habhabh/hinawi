@@ -1,0 +1,1 @@
+export default function Loading() { return <main className="app-shell"><div className="topbar" /><div className="profile"><div className="avatar" /><h1>جارٍ تحميل الأعمال…</h1></div><div className="project-grid">{Array.from({ length: 9 }).map((_, i) => <div className="project-tile" key={i} />)}</div></main>; }

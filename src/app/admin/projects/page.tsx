@@ -1,0 +1,3 @@
+import { ProjectForm } from "@/components/admin/create-forms";
+import { adminLists } from "@/db/queries/admin";
+export default async function ProjectsPage() { const rows = await adminLists.projects(); return <><h1>المشاريع</h1><ProjectForm /><div className="table-wrap" style={{ marginTop: "1rem" }}><table><thead><tr><th>العنوان</th><th>الحالة</th><th>آخر تحديث</th><th>معاينة</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.title}</td><td>{row.status}</td><td>{row.updatedAt.toLocaleDateString("ar-SA")}</td><td><a href={`/works/${row.slug}`} target="_blank">فتح</a></td></tr>)}</tbody></table></div></>; }

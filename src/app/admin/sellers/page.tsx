@@ -1,0 +1,3 @@
+import { SellerForm } from "@/components/admin/create-forms";
+import { adminLists } from "@/db/queries/admin";
+export default async function SellersPage() { const rows = await adminLists.sellers(); return <><h1>البائعون</h1><SellerForm /><div className="table-wrap" style={{ marginTop: "1rem" }}><table><thead><tr><th>الاسم</th><th>المسمى</th><th>الفرع</th><th>الحالة</th><th>الرابط</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.jobTitle}</td><td>{row.branch}</td><td>{row.isActive ? "نشط" : "معطل"}</td><td><a href={`/s/${row.slug}`} target="_blank">/{row.slug}</a></td></tr>)}</tbody></table></div></>; }

@@ -1,0 +1,1 @@
+ALTER TABLE "media_assets" ADD CONSTRAINT "media_assets_poster_asset_fk" FOREIGN KEY ("poster_asset_id") REFERENCES "public"."media_assets"("id") ON DELETE set null ON UPDATE no action;
