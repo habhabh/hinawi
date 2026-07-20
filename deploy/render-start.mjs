@@ -63,7 +63,7 @@ await runWithRetry(".ops/migrate.mjs");
 await runWithRetry(".ops/seed.mjs");
 await runWithRetry(".ops/create-super-admin.mjs");
 
-const worker = start(".ops/media-worker.mjs");
+const worker = start(".ops/media-worker.cjs");
 const web = start("server.js");
 
 for (const [name, child] of [["media worker", worker], ["web server", web]]) {

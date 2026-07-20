@@ -20,7 +20,7 @@ RUN pnpm build \
   && pnpm exec esbuild src/db/migrate.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/migrate.mjs \
   && pnpm exec esbuild src/scripts/seed.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/seed.mjs \
   && pnpm exec esbuild src/scripts/create-super-admin.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/create-super-admin.mjs \
-  && pnpm exec esbuild src/workers/media-worker.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --external:sharp --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/media-worker.mjs \
+  && pnpm exec esbuild src/workers/media-worker.ts --bundle --platform=node --format=cjs --target=node24 --external:pg-native --external:sharp --outfile=.ops/media-worker.cjs \
   && rm -rf .next/cache
 
 FROM node:24-alpine AS runner

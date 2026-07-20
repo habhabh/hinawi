@@ -72,7 +72,7 @@ services:
     pull_policy: never
     restart: unless-stopped
     environment: *app-environment
-    command: ["node", ".ops/media-worker.mjs"]
+    command: ["node", ".ops/media-worker.cjs"]
     volumes:
       - media-data:/data/media
     depends_on:
