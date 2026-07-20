@@ -25,19 +25,32 @@ jobs:
       MEDIA_ROOT: /tmp/alhinnawi-media
       MEDIA_PUBLIC_BASE_URL: http://127.0.0.1:3000/api/media
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 11.9.0 }
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Set up pnpm from package.json
+        uses: pnpm/action-setup@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with: { node-version: 24, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm db:migrate
-      - run: pnpm db:seed
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test:unit
-      - run: RUN_DB_TESTS=1 pnpm test:integration
-      - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e --project=mobile
-      - run: docker build -t al-hinnawi:${{ github.sha }} .
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply database migrations
+        run: pnpm db:migrate
+      - name: Seed test database
+        run: pnpm db:seed
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test:unit
+      - name: Database integration tests
+        run: RUN_DB_TESTS=1 pnpm test:integration
+      - name: Production build
+        run: pnpm build
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Mobile end-to-end tests
+        run: pnpm test:e2e --project=mobile
+      - name: Build production Docker image
+        run: docker build -t al-hinnawi:${{ github.sha }} .
