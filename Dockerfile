@@ -21,6 +21,11 @@ RUN pnpm build \
   && pnpm exec esbuild src/scripts/seed.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/seed.mjs \
   && pnpm exec esbuild src/scripts/create-super-admin.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/create-super-admin.mjs \
   && pnpm exec esbuild src/workers/media-worker.ts --bundle --platform=node --format=cjs --target=node24 --external:pg-native --external:sharp --outfile=.ops/media-worker.cjs \
+  && mkdir -p .ops/node_modules \
+  && cp -LR node_modules/sharp .ops/node_modules/sharp \
+  && cp -LR node_modules/.pnpm/node_modules/@img .ops/node_modules/@img \
+  && cp -LR node_modules/.pnpm/node_modules/detect-libc .ops/node_modules/detect-libc \
+  && cp -LR node_modules/.pnpm/node_modules/semver .ops/node_modules/semver \
   && rm -rf .next/cache
 
 FROM node:24-alpine AS runner

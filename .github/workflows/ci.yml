@@ -56,5 +56,5 @@ jobs:
         run: docker build -t al-hinnawi:${{ github.sha }} .
       - name: Verify production worker runtime
         run: |
-          docker run --rm --entrypoint node al-hinnawi:${{ github.sha }} -e "require('sharp'); console.log('sharp runtime ok')"
+          docker run --rm --entrypoint node al-hinnawi:${{ github.sha }} -e "const { createRequire } = require('node:module'); createRequire('/app/.ops/media-worker.cjs')('sharp'); console.log('sharp runtime ok')"
           docker run --rm --entrypoint node al-hinnawi:${{ github.sha }} --check .ops/media-worker.cjs
