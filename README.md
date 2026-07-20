@@ -72,6 +72,10 @@ docker build -t al-hinnawi .
 
 للنشر الآلي الكامل استخدم Docker Compose Build Pack مع `docker-compose.coolify.yml`؛ سينشئ PostgreSQL والويب والـworker والـvolumes ويطبق migrations وseed وينشئ المدير تلقائياً. اتبع [قائمة Coolify السريعة](docs/COOLIFY_QUICKSTART.md). لا ترفع القيم السرية إلى GitHub.
 
+## Render
+
+ملف `render.yaml` ينشئ خدمة Docker وPostgreSQL وقرص الوسائط من GitHub، ويشغل migrations والـseed والمدير والـmedia worker تلقائياً. اتبع [دليل Render](docs/RENDER_DEPLOY.md). يستخدم الإعداد خدمة واحدة للويب والـworker لأن قرص Render الدائم لا يمكن مشاركته بين خدمتين.
+
 ## البنية
 
 - `src/app`: المسارات العامة والإدارة وRoute Handlers وSEO/PWA.

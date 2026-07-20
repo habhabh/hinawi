@@ -16,6 +16,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build \
   && mkdir -p .ops \
+  && cp deploy/render-start.mjs .ops/render-start.mjs \
   && pnpm exec esbuild src/db/migrate.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/migrate.mjs \
   && pnpm exec esbuild src/scripts/seed.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/seed.mjs \
   && pnpm exec esbuild src/scripts/create-super-admin.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --banner:js="import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" --outfile=.ops/create-super-admin.mjs \

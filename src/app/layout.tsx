@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   description: "مكتبة مرئية لأعمال الحناوي في الديكور وخزانات الملابس.",
   applicationName: "الحناوي",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon.svg", apple: "/apple-icon.svg" },
+  icons: { icon: "/logo.png", apple: "/logo.png" },
   openGraph: { locale: "ar_SA", type: "website", siteName: "الحناوي للديكور" },
   twitter: { card: "summary_large_image" },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#F7F3EC" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#1768AA" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="ar" dir="rtl"><body><a className="skip-link" href="#main">انتقل إلى المحتوى</a>{children}</body></html>;
