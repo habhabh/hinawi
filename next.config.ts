@@ -4,7 +4,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: ["127.0.0.1"],
   poweredByHeader: false,
-  experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  experimental: {
+    cpus: 1,
+    preloadEntriesOnStart: false,
+    serverActions: { bodySizeLimit: "2mb" },
+  },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
     formats: ["image/avif", "image/webp"],

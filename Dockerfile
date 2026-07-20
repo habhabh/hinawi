@@ -4,13 +4,17 @@ ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH
 RUN npm install --global pnpm@11.9.0
 WORKDIR /app
 
-FROM base AS builder
-ENV NEXT_TELEMETRY_DISABLED=1
+FROM base AS dependencies
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod \
+  && rm -rf /pnpm/store
+
+FROM base AS builder
+ENV NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=--max-old-space-size=1024
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build \
-  && rm -rf node_modules /pnpm/store
+  && rm -rf .next/cache
 
 FROM base AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000 MEDIA_ROOT=/data/media
@@ -18,8 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl && 
   && groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs --create-home nextjs \
   && mkdir -p /data/media && chown -R nextjs:nodejs /data/media
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod && rm -rf /pnpm/store
+COPY --from=dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

@@ -60,7 +60,7 @@ https://your-domain.example:3000
 PostgreSQL healthy → migrations → seed → super admin → web healthy → media worker
 ```
 
-أول بناء أبطأ من التحديثات لأنه يبني صورة Node ويثبت FFmpeg. بعد النجاح افتح `/api/health` ثم `/admin/login`.
+أول بناء أبطأ من التحديثات لأنه يبني صورة Node ويثبت FFmpeg. يبني Compose صورة التطبيق مرة واحدة فقط، ثم تستخدم خدمتا web والـworker الصورة نفسها. حُدّدت ذاكرة Node أثناء البناء بـ1GB وخُفض توازي Next.js حتى لا يستهلك البناء كامل موارد خادم صغير. بعد النجاح افتح `/api/health` ثم `/admin/login`.
 
 ## الاستمرارية والتحديثات
 
