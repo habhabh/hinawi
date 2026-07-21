@@ -1,6 +1,6 @@
 # نشر آلي كامل على Coolify
 
-استخدم `docker-compose.coolify.yml` بدلاً من إنشاء web وقاعدة البيانات والـworker كموارد منفصلة. ينشئ Stack واحد تلقائياً:
+استخدم `docker-compose.coolify.yml` بدلاً من إنشاء web وقاعدة البيانات والـworker كموارد منفصلة. يبني GitHub Actions صورة التطبيق خارج خادم Hetzner، ثم يسحب Coolify الصورة الجاهزة من GHCR. ينشئ Stack واحد تلقائياً:
 
 - PostgreSQL 17 مع volume دائمة.
 - تطبيق Next.js مع volume دائمة للوسائط.
@@ -21,7 +21,19 @@
 | Base Directory | `/` |
 | Docker Compose Location | `/docker-compose.coolify.yml` |
 
-لا تختر Nixpacks أو Dockerfile لهذا المسار الآلي.
+لا تختر Nixpacks أو Dockerfile لهذا المسار الآلي. ملف Compose لا يحتوي `build`، لذلك لا يشغّل Coolify تثبيت الحزم أو بناء Next.js على الخادم.
+
+## إعداد صورة GitHub مرة واحدة
+
+بعد أول Push ناجح إلى `main` افتح مستودع GitHub ثم **Packages → hinawi → Package settings** واجعل الصورة **Public**. البديل هو إضافة GitHub Container Registry إلى Coolify ببيانات دخول لها صلاحية `read:packages`.
+
+الصورة الافتراضية هي:
+
+```text
+ghcr.io/habhabh/hinawi:latest
+```
+
+يبني CI الصورة ويفحصها ثم يرفع وسمين: `latest` ووسمًا ثابتًا برقم commit. لا تضغط Deploy قبل اكتمال GitHub Actions باللون الأخضر.
 
 ## القيم الوحيدة المطلوبة
 
@@ -29,6 +41,7 @@
 
 ```dotenv
 APP_URL=https://your-domain.example
+APP_IMAGE=ghcr.io/habhabh/hinawi:latest
 SUPER_ADMIN_EMAIL=your-email@example.com
 SUPER_ADMIN_NAME=اسم المدير
 ```
@@ -54,16 +67,21 @@ https://your-domain.example:3000
 
 المنفذ `3000` هنا داخلي فقط؛ الزائر يستخدم HTTPS العادي دون كتابة المنفذ. لا تعيّن domain لخدمتي `postgres` أو `media-worker` ولا تنشر منافذ لهما.
 
-اضغط **Deploy**. تسلسل البداية تلقائي:
+اضغط **Deploy** بعد نجاح CI. تسلسل البداية تلقائي:
 
 ```text
 PostgreSQL healthy → migrations → seed → super admin → web healthy → media worker
 ```
 
-أول بناء أبطأ من التحديثات لأنه يبني صورة Node ويثبت FFmpeg. يبني Compose صورة Alpine واحدة فقط، ثم تستخدم خدمتا web والـworker الصورة نفسها. لا تحتوي صورة التشغيل على TypeScript أو pnpm أو شجرة اعتماديات التطوير؛ تُحوّل migrations والـseed والـworker إلى JavaScript أثناء البناء، وتحتفظ الصورة فقط بملفات Next.js المتتبعة. حُدّدت ذاكرة البناء بـ1GB وخُفض توازي Next.js. بعد النجاح افتح `/api/health` ثم `/admin/login`.
+Coolify يسحب صورة Alpine واحدة جاهزة، ثم تستخدم خدمتا web والـworker الصورة نفسها. لا يحتوي خادم Hetzner أثناء النشر على عملية `pnpm install` أو `next build`، ولذلك يكون استهلاك المعالج والذاكرة محدودًا بفك الصورة وتشغيل الخدمات. لا تحتوي صورة التشغيل على TypeScript أو pnpm أو شجرة اعتماديات التطوير. بعد النجاح افتح `/api/health` ثم `/admin/login`.
 
 ## الاستمرارية والتحديثات
 
 `postgres-data` و`media-data` معرفتان كـnamed volumes داخل Stack؛ تحديث الصورة أو إعادة تشغيل الخدمات لا يحذف البيانات. لا تستخدم **Delete Storage** أو حذف volumes عند إعادة النشر. migrations وseed وإنشاء المدير آمنة للتشغيل المتكرر، ولا يعاد ضبط كلمة مرور مدير موجود.
 
-فعّل Auto Deploy من GitHub بعد نجاح أول نشر. فعّل أيضاً نسخة احتياطية خارج الخادم لقاعدة البيانات ووسائط `/data/media`؛ الـvolume تحمي من إعادة النشر لكنها ليست نسخة احتياطية ضد فقد الخادم.
+لا تفعّل Auto Deploy المباشر عند كل Push؛ قد يبدأ قبل أن ينتهي CI من رفع الصورة الجديدة. لديك خياران:
+
+1. انتظر نجاح CI ثم اضغط **Redeploy** يدويًا.
+2. انسخ Deploy Webhook من Coolify وأضفه في GitHub كـRepository Secret باسم `COOLIFY_DEPLOY_WEBHOOK`. عندها يستدعيه CI تلقائيًا بعد رفع الصورة الجديدة فقط.
+
+فعّل أيضاً نسخة احتياطية خارج الخادم لقاعدة البيانات ووسائط `/data/media`؛ الـvolume تحمي من إعادة النشر لكنها ليست نسخة احتياطية ضد فقد الخادم. للرجوع لإصدار سابق غيّر `APP_IMAGE` مؤقتًا إلى `ghcr.io/habhabh/hinawi:<commit-sha>` ثم أعد النشر.

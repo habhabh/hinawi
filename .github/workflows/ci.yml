@@ -2,6 +2,9 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
+  packages: write
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -58,3 +61,23 @@ jobs:
         run: |
           docker run --rm --entrypoint node al-hinnawi:${{ github.sha }} -e "const { createRequire } = require('node:module'); createRequire('/app/.ops/media-worker.cjs')('sharp'); console.log('sharp runtime ok')"
           docker run --rm --entrypoint node al-hinnawi:${{ github.sha }} --check .ops/media-worker.cjs
+      - name: Publish production image to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE_NAME: ghcr.io/${{ github.repository }}
+        run: |
+          echo "${{ github.token }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          docker tag al-hinnawi:${{ github.sha }} "$IMAGE_NAME:${{ github.sha }}"
+          docker tag al-hinnawi:${{ github.sha }} "$IMAGE_NAME:latest"
+          docker push "$IMAGE_NAME:${{ github.sha }}"
+          docker push "$IMAGE_NAME:latest"
+      - name: Trigger Coolify after the image is ready
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          COOLIFY_DEPLOY_WEBHOOK: ${{ secrets.COOLIFY_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -n "$COOLIFY_DEPLOY_WEBHOOK" ]; then
+            curl --fail-with-body --silent --show-error "$COOLIFY_DEPLOY_WEBHOOK" > /dev/null
+          else
+            echo "COOLIFY_DEPLOY_WEBHOOK is not configured; deploy manually after CI succeeds."
+          fi
