@@ -20,9 +20,10 @@ test("زر الاستكشاف يفتح وسائط مشروع منشور", async 
   await expect(page.getByRole("link", { name: "ابدأ الاستكشاف" })).toHaveAttribute("href", /^\/works\//);
 });
 
-test("المشاركة داخل المشروع فقط ووسائطه بتمرير رأسي", async ({ page }) => {
+test("المشاركة خارج topbar ووسائط المشروع بتمرير رأسي", async ({ page }) => {
   await page.goto("/s/ahmed-alotaibi");
-  await expect(page.getByRole("button", { name: "مشاركة الصفحة" })).toHaveCount(0);
+  await expect(page.locator(".topbar").getByRole("button", { name: "مشاركة الصفحة" })).toHaveCount(0);
+  await expect(page.locator(".profile").getByRole("button", { name: "مشاركة الصفحة" })).toBeVisible();
   await page.goto("/works/wardrobe-oak-rhythm");
   await expect(page.getByRole("button", { name: "مشاركة الصفحة" })).toBeVisible();
   await expect(page.getByRole("link", { name: "اطلب تنفيذًا مشابهًا" })).toBeVisible();
