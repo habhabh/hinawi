@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import sharp from "sharp";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, pool } from "@/db";
-import { mediaAssets, mediaJobs } from "@/db/schema";
+import { mediaAssets, mediaJobs, projectItems, sellers } from "@/db/schema";
 import { storage } from "@/lib/storage";
 
 const exec = promisify(execFile);
@@ -23,7 +23,7 @@ async function claimJob() {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<{ id: string; media_asset_id: string; job_type: string; attempts: number; max_attempts: number }>(`SELECT id, media_asset_id, job_type, attempts, max_attempts FROM media_jobs WHERE status = 'queued' AND available_at <= now() ORDER BY available_at, created_at FOR UPDATE SKIP LOCKED LIMIT 1`);
+    const result = await client.query<{ id: string; media_asset_id: string; job_type: string; attempts: number; max_attempts: number; payload: Record<string, unknown> }>(`SELECT id, media_asset_id, job_type, attempts, max_attempts, payload FROM media_jobs WHERE status = 'queued' AND available_at <= now() ORDER BY available_at, created_at FOR UPDATE SKIP LOCKED LIMIT 1`);
     const job = result.rows[0];
     if (!job) { await client.query("COMMIT"); return null; }
     await client.query(`UPDATE media_jobs SET status='processing', locked_at=now(), locked_by=$2, attempts=attempts+1, updated_at=now() WHERE id=$1`, [job.id, workerId]);
@@ -69,8 +69,25 @@ async function inspectVideo(asset: typeof mediaAssets.$inferSelect) {
 async function runJob(job: NonNullable<Awaited<ReturnType<typeof claimJob>>>) {
   const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, job.media_asset_id)).limit(1);
   if (!asset) throw new Error("الوسيط المرتبط بالمهمة غير موجود");
-  if (asset.status === "ready") return;
-  if (job.job_type === "process_image") await processImage(asset); else if (job.job_type === "inspect_video") await inspectVideo(asset); else throw new Error("نوع مهمة غير معروف");
+  if (asset.status !== "ready") {
+    if (job.job_type === "process_image") await processImage(asset); else if (job.job_type === "inspect_video") await inspectVideo(asset); else throw new Error("نوع مهمة غير معروف");
+  }
+  const projectId = typeof job.payload?.projectId === "string" ? job.payload.projectId : null;
+  if (projectId) {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${projectId}))`);
+      const [existing] = await tx.select({ id: projectItems.id }).from(projectItems).where(and(eq(projectItems.projectId, projectId), eq(projectItems.primaryAssetId, asset.id))).limit(1);
+      if (existing) return;
+      const [order] = await tx.select({ next: sql<number>`coalesce(max(${projectItems.sortOrder}), -1) + 1`, count: sql<number>`count(*)` }).from(projectItems).where(eq(projectItems.projectId, projectId));
+      await tx.insert(projectItems).values({ projectId, itemType: asset.type, primaryAssetId: asset.id, altText: asset.originalName, sortOrder: Number(order.next), isCover: Number(order.count) === 0 });
+    });
+  }
+  const sellerId = typeof job.payload?.sellerId === "string" ? job.payload.sellerId : null;
+  if (sellerId) {
+    if (asset.type !== "image") throw new Error("صورة البائع يجب أن تكون ملف صورة");
+    const [seller] = await db.update(sellers).set({ avatarAssetId: asset.id, updatedAt: new Date() }).where(and(eq(sellers.id, sellerId), isNull(sellers.archivedAt))).returning({ id: sellers.id });
+    if (!seller) throw new Error("البائع المرتبط بمهمة الصورة غير موجود");
+  }
 }
 
 async function main() {

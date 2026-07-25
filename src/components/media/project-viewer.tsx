@@ -17,6 +17,6 @@ export function ProjectViewer({ project, whatsappUrl }: { project: { title: stri
       {item.itemType === "video" ? <video src={item.primaryUrl} poster={item.posterUrl ?? undefined} controls playsInline muted preload="metadata" aria-label={item.altText} /> : item.itemType === "before_after" && item.secondaryUrl ? <BeforeAfter before={item.primaryUrl} after={item.secondaryUrl} alt={item.altText} /> : <Image src={item.primaryUrl} alt={item.altText} fill sizes="100vw" unoptimized />}
     </section>)}</div>
     <div className="viewer-caption"><h1>{project.title}</h1><p>{[project.location, project.projectYear, project.summary].filter(Boolean).join(" · ")}</p></div>
-    {whatsappUrl && <AnalyticsLink href={whatsappUrl} eventType="whatsapp_click" className="button button-primary viewer-cta"><MessageCircle size={19} />اسأل عن المشروع</AnalyticsLink>}
+    {whatsappUrl && <AnalyticsLink href={whatsappUrl} eventType="whatsapp_click" className="button button-primary viewer-cta"><MessageCircle size={19} />اطلب تنفيذًا مشابهًا</AnalyticsLink>}
   </main>;
 }

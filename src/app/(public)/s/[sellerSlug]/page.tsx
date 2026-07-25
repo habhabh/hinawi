@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectGrid } from "@/components/public/project-grid";
 import { SellerProfile } from "@/components/public/seller-profile";
-import { ShareButton } from "@/components/public/share-button";
 import { Brand } from "@/components/shared/brand";
 import { getSellerPage, getSettings } from "@/db/queries/public";
 import { absoluteUrl } from "@/lib/seo";
@@ -26,7 +25,7 @@ export default async function SellerPage({ params, searchParams }: Props) {
   if (!data) notFound();
   const personJsonLd = { "@context": "https://schema.org", "@type": "Person", name: data.seller.name, jobTitle: data.seller.jobTitle, worksFor: { "@type": "Organization", name: settings.companyName }, url: absoluteUrl(`/s/${sellerSlug}`) };
   return <main id="main" className="app-shell">
-    <header className="topbar"><Brand /><ShareButton title={`أعمال ${data.seller.name}`} /></header>
+    <header className="topbar"><Brand /></header>
     <SellerProfile seller={data.seller} companyName={settings.companyName} />
     <nav className="highlights" aria-label="أقسام الأعمال"><Link className={`highlight ${!query.category ? "active" : ""}`} href={`/s/${sellerSlug}`}><span className="highlight-circle"><Grid3X3 size={23} /></span><span>الكل</span></Link>{data.categories.map((category) => <Link key={category.id} className={`highlight ${query.category === category.slug ? "active" : ""}`} href={`/s/${sellerSlug}?category=${category.slug}`}><span className="highlight-circle"><PanelsTopLeft size={23} /></span><span>{category.name}</span></Link>)}</nav>
     <div className="section-heading"><h2>{query.category ? data.categories.find((c) => c.slug === query.category)?.name : "كل الأعمال"}</h2><span className="muted">{data.projects.length} مشروع</span></div>

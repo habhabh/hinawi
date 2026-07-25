@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MediaUploader } from "@/components/admin/media-uploader";
 import {
   archiveCategoryAction,
   archiveProjectAction,
@@ -33,6 +34,7 @@ export function SellerEditForm({ data }: { data: {
 } }) {
   const { seller } = data;
   return <>
+    <MediaUploader sellerId={seller.id} />
     <form className="card form-grid editor-form" action={updateSellerAction}>
       <input type="hidden" name="id" value={seller.id} />
       <TextField label="الاسم" name="name" value={seller.name} required />
@@ -42,7 +44,7 @@ export function SellerEditForm({ data }: { data: {
       <TextField label="رقم الاتصال E.164" name="phoneE164" value={seller.phoneE164} />
       <TextField label="واتساب E.164" name="whatsappE164" value={seller.whatsappE164} />
       <TextField label="البريد الإلكتروني" name="email" type="email" value={seller.email} />
-      <div className="field"><label htmlFor="avatarAssetId">الصورة الشخصية</label><select id="avatarAssetId" name="avatarAssetId" defaultValue={seller.avatarAssetId ?? ""}><option value="">بدون صورة</option>{data.avatars.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></div>
+      <div className="field"><label htmlFor="avatarAssetId">الصورة الشخصية من المكتبة</label><select id="avatarAssetId" name="avatarAssetId" defaultValue={seller.avatarAssetId ?? ""}><option value="">بدون صورة</option>{data.avatars.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></div>
       <TextArea label="نبذة البائع" name="bio" value={seller.bio} />
       <TextArea label="رسالة واتساب المخصصة" name="customWhatsappMessage" value={seller.customWhatsappMessage} />
       <TextField label="عنوان SEO" name="seoTitle" value={seller.seoTitle} wide />
@@ -92,6 +94,7 @@ export function ProjectEditForm({ data }: { data: {
   const cover = data.items.find((item) => item.isCover)?.assetId;
   const protectedItems = data.items.filter((item) => item.itemType === "before_after");
   return <>
+    <MediaUploader projectId={project.id} />
     <form className="card form-grid editor-form" action={updateProjectAction}>
       <input type="hidden" name="id" value={project.id} />
       <TextField label="عنوان المشروع" name="title" value={project.title} required />
@@ -107,9 +110,9 @@ export function ProjectEditForm({ data }: { data: {
       <TextArea label="وصف SEO" name="seoDescription" value={project.seoDescription} rows={3} />
       <ChoiceGrid title="أقسام المشروع" description="أول قسم محدد يصبح القسم الأساسي للمشروع." name="categoryIds" choices={data.categories} selected={new Set(data.categoryIds)} />
       <ChoiceGrid title="البائعون المرتبطون بالمشروع" description="يمكن إسناد المشروع المركزي نفسه لأكثر من بائع دون نسخه." name="sellerIds" choices={data.sellers} selected={new Set(data.sellerIds)} />
-      <fieldset className="field-wide relation-field"><legend>صور وفيديوهات المشروع</legend><p className="muted">حدد الوسائط التي تظهر داخل المشروع، ثم اختر الغلاف. ارفع ملفات جديدة أولًا من مكتبة الوسائط.</p><div className="media-choice-grid">{data.assets.map((asset) => <div className="media-choice" key={asset.id}><label><input type="checkbox" name="mediaAssetIds" value={asset.id} defaultChecked={selectedAssets.has(asset.id)} /> <span>{asset.name}</span> <small>{asset.type === "image" ? "صورة" : "فيديو"}</small></label><label className="cover-choice"><input type="radio" name="coverAssetId" value={asset.id} defaultChecked={cover === asset.id} /> غلاف</label></div>)}</div>{!data.assets.length && <p className="empty-note">لا توجد وسائط جاهزة. ارفع صورة أو فيديو من مكتبة الوسائط.</p>}{protectedItems.length > 0 && <p className="muted">عناصر قبل/بعد الحالية محفوظة ولا تُحذف من هذا النموذج.</p>}</fieldset>
+      <fieldset className="field-wide relation-field"><legend>صور وفيديوهات المشروع</legend><p className="muted">الوسائط المرفوعة أعلاه تُضاف تلقائيًا. ألغِ تحديد أي وسيط لإزالته من المشروع، واختر الغلاف.</p><div className="media-choice-grid">{data.assets.map((asset) => <div className="media-choice" key={asset.id}><label><input type="checkbox" name="mediaAssetIds" value={asset.id} defaultChecked={selectedAssets.has(asset.id)} /> <span>{asset.name}</span> <small>{asset.type === "image" ? "صورة" : "فيديو"}</small></label><label className="cover-choice"><input type="radio" name="coverAssetId" value={asset.id} defaultChecked={cover === asset.id} /> غلاف</label></div>)}</div>{!data.assets.length && <p className="empty-note">لا توجد وسائط جاهزة بعد.</p>}{protectedItems.length > 0 && <p className="muted">عناصر قبل/بعد الحالية محفوظة ولا تُحذف من هذا النموذج.</p>}</fieldset>
       <div className="field-wide inline-options"><label><input type="checkbox" name="featured" defaultChecked={project.featured} /> مشروع مميز</label></div>
-      <div className="field-wide form-actions"><button className="button button-primary">حفظ وربط المشروع</button><Link className="button" href="/admin/media">رفع وسائط</Link><Link className="button" href={`/works/${project.slug}`} target="_blank">معاينة المشروع</Link></div>
+      <div className="field-wide form-actions"><button className="button button-primary">حفظ وربط المشروع</button><Link className="button" href={`/works/${project.slug}`} target="_blank">معاينة المشروع</Link></div>
     </form>
     <form className="danger-zone" action={archiveProjectAction}><input type="hidden" name="id" value={project.id} /><div><strong>حذف المشروع</strong><p className="muted">سيختفي من جميع صفحات البائعين والأقسام دون حذف ملفات الوسائط.</p></div><button className="button button-danger">حذف المشروع</button></form>
   </>;

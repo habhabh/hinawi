@@ -15,6 +15,24 @@ test("canonical المشروع لا يحمل advisor", async ({ page }) => {
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/works\/wardrobe-oak-rhythm$/);
 });
 
+test("زر الاستكشاف يفتح وسائط مشروع منشور", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "ابدأ الاستكشاف" })).toHaveAttribute("href", /^\/works\//);
+});
+
+test("المشاركة داخل المشروع فقط ووسائطه بتمرير رأسي", async ({ page }) => {
+  await page.goto("/s/ahmed-alotaibi");
+  await expect(page.getByRole("button", { name: "مشاركة الصفحة" })).toHaveCount(0);
+  await page.goto("/works/wardrobe-oak-rhythm");
+  await expect(page.getByRole("button", { name: "مشاركة الصفحة" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "اطلب تنفيذًا مشابهًا" })).toBeVisible();
+  const scrolling = await page.locator(".media-stage").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { snap: style.scrollSnapType, overflowX: style.overflowX, overflowY: style.overflowY };
+  });
+  expect(scrolling).toEqual({ snap: "y mandatory", overflowX: "hidden", overflowY: "auto" });
+});
+
 test("شبكة البائع ثلاثة أعمدة وتفتح المشروع", async ({ page }) => {
   await page.goto("/s/ahmed-alotaibi");
   const grid = page.locator('#main > .project-grid[role="list"]');

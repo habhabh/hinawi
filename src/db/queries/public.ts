@@ -179,6 +179,20 @@ export async function listPublicProjects(limit = 24) {
     .limit(limit);
 }
 
+export async function getRandomPublishedProject() {
+  const [project] = await db
+    .select({ slug: projects.slug })
+    .from(projects)
+    .where(and(
+      eq(projects.status, "published"),
+      isNull(projects.archivedAt),
+      sql`exists (select 1 from ${projectItems} inner join ${mediaAssets} on ${mediaAssets.id} = ${projectItems.primaryAssetId} where ${projectItems.projectId} = ${projects.id} and ${mediaAssets.status} = 'ready')`,
+    ))
+    .orderBy(sql`random()`)
+    .limit(1);
+  return project ?? null;
+}
+
 export async function listPublicCategories() {
   return db.select().from(categories).where(and(eq(categories.isActive, true), isNull(categories.archivedAt))).orderBy(asc(categories.sortOrder));
 }

@@ -1,7 +1,6 @@
 import { Building2, Mail, MessageCircle, Phone } from "lucide-react";
 import Image from "next/image";
 import { AnalyticsLink } from "@/components/public/analytics-link";
-import { ShareButton } from "@/components/public/share-button";
 import { buildWhatsappUrl, interpolateWhatsappMessage } from "@/lib/whatsapp";
 
 type Seller = { name: string; jobTitle: string | null; bio: string | null; branch: string | null; avatarUrl: string | null; phoneE164: string | null; whatsappE164: string | null; email: string | null; showEmail: boolean; customWhatsappMessage: string | null };
@@ -20,7 +19,6 @@ export function SellerProfile({ seller, companyName }: { seller: Seller; company
       {whatsapp && <AnalyticsLink href={whatsapp} eventType="whatsapp_click" className="button button-primary"><MessageCircle size={19} />واتساب</AnalyticsLink>}
       {seller.phoneE164 && <AnalyticsLink href={`tel:${seller.phoneE164}`} eventType="phone_click" className="button" ><Phone size={19} /><span className="sr-only">اتصال</span></AnalyticsLink>}
       {seller.showEmail && seller.email && <a href={`mailto:${seller.email}`} className="button"><Mail size={19} /><span className="sr-only">البريد الإلكتروني</span></a>}
-      <ShareButton title={`أعمال ${seller.name}`} className="button" />
     </div>
   </section>;
 }
