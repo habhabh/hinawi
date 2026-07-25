@@ -56,7 +56,7 @@ services:
       SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-مدير النظام}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:?}
       SUPER_ADMIN_PASSWORD: ${SERVICE_PASSWORD_64_ADMIN}
-    command: ["sh", "-c", "node .ops/migrate.mjs && node .ops/seed.mjs && node .ops/create-super-admin.mjs && exec node server.js"]
+    command: ["sh", "-c", "node .ops/migrate.mjs && node .ops/create-super-admin.mjs && exec node server.js"]
     expose:
       - "3000"
     volumes:
