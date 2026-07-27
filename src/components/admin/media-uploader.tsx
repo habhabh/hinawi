@@ -56,16 +56,26 @@ export function MediaUploader({ projectId, sellerId }: { projectId?: string; sel
     const selectedFiles = isAvatar ? [files[0]] : Array.from(files);
     setUploading(true);
     setProgress(0);
+    const failures: Array<{ name: string; reason: string }> = [];
     try {
       for (let index = 0; index < selectedFiles.length; index += 1) {
         setMessage(`جارٍ رفع ومعالجة ${selectedFiles[index].name} (${index + 1} من ${selectedFiles.length})…`);
-        await upload(selectedFiles[index]);
+        try {
+          await upload(selectedFiles[index]);
+        } catch (error) {
+          failures.push({
+            name: selectedFiles[index].name,
+            reason: error instanceof Error ? error.message : "خطأ غير معروف",
+          });
+        }
         setProgress(Math.round(((index + 1) / selectedFiles.length) * 100));
       }
-      setMessage(sellerId ? "تم تحديث صورة البائع بنجاح." : projectId ? "تمت إضافة الوسائط إلى المشروع تلقائيًا." : "تم رفع الوسائط ومعالجتها بنجاح.");
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "تعذر إكمال رفع الوسائط");
+      if (failures.length) {
+        setMessage(`اكتملت بقية الملفات. ${failures.map((failure) => `تعذرت معالجة ${failure.name}: ${failure.reason}`).join(" — ")}`);
+      } else {
+        setMessage(sellerId ? "تم تحديث صورة البائع بنجاح." : projectId ? "تمت إضافة الوسائط إلى المشروع تلقائيًا." : "تم رفع الوسائط ومعالجتها بنجاح.");
+      }
+      if (failures.length < selectedFiles.length) router.refresh();
     } finally {
       setUploading(false);
     }

@@ -7,11 +7,15 @@ import sharp from "sharp";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { mediaAssets, mediaJobs, projectItems, sellers } from "@/db/schema";
+import { env } from "@/lib/env";
 import { storage } from "@/lib/storage";
 
 const exec = promisify(execFile);
 const workerId = `media-${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
 let stopping = false;
+
+sharp.concurrency(1);
+sharp.cache({ memory: 32, files: 0, items: 32 });
 
 async function toBuffer(stream: NodeJS.ReadableStream) {
   const chunks: Buffer[] = [];
@@ -34,19 +38,57 @@ async function claimJob() {
 
 async function processImage(asset: typeof mediaAssets.$inferSelect) {
   const source = await toBuffer(await storage.read(asset.objectKey));
-  const imageOptions = { failOn: "none" as const, sequentialRead: true, limitInputPixels: 100_000_000 };
-  const meta = await sharp(source, imageOptions).metadata();
-  if (!meta.width || !meta.height || !["jpeg", "png", "webp", "avif"].includes(meta.format || "")) throw new Error("صيغة الصورة الحقيقية غير مدعومة");
-  const variants: Record<string, { key: string; width?: number; height?: number }> = {};
-  for (const [name, width] of Object.entries({ thumbnail: 320, grid: 640, medium: 1280, large: 1920 })) {
-    const key = `variants/${asset.id}/${name}.webp`;
-    if (!(await storage.exists(key))) {
-      const output = await sharp(source, imageOptions).rotate().resize({ width, height: name === "thumbnail" ? width : undefined, fit: name === "thumbnail" ? "cover" : "inside", withoutEnlargement: true }).webp({ quality: name === "thumbnail" ? 78 : 84 }).toBuffer();
-      await storage.write(key, output, "image/webp");
+  const sourceOptions = { failOn: "none" as const, sequentialRead: true, limitInputPixels: env.IMAGE_MAX_PIXELS };
+  try {
+    const meta = await sharp(source, sourceOptions).metadata();
+    if (!meta.width || !meta.height || !["jpeg", "png", "webp", "avif"].includes(meta.format || "")) throw new Error("صيغة الصورة الحقيقية غير مدعومة");
+
+    const largeKey = `variants/${asset.id}/large.webp`;
+    let normalized: Buffer;
+    if (await storage.exists(largeKey)) {
+      normalized = await toBuffer(await storage.read(largeKey));
+    } else {
+      normalized = await sharp(source, sourceOptions)
+        .rotate()
+        .resize({ width: 1920, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 84 })
+        .toBuffer();
+      await storage.write(largeKey, normalized, "image/webp");
     }
-    variants[name] = { key, width: Math.min(width, meta.width) };
+    const normalizedMeta = await sharp(normalized).metadata();
+    const variants: Record<string, { key: string; width?: number; height?: number }> = {
+      large: { key: largeKey, width: normalizedMeta.width, height: normalizedMeta.height },
+    };
+
+    for (const [name, width] of Object.entries({ thumbnail: 320, grid: 640, medium: 1280 })) {
+      const key = `variants/${asset.id}/${name}.webp`;
+      const existing = asset.variants?.[name];
+      if (await storage.exists(key)) {
+        variants[name] = existing?.key === key
+          ? existing
+          : { key, width: Math.min(width, normalizedMeta.width ?? width) };
+        continue;
+      }
+      const { data, info } = await sharp(normalized)
+        .resize({
+          width,
+          height: name === "thumbnail" ? width : undefined,
+          fit: name === "thumbnail" ? "cover" : "inside",
+          withoutEnlargement: true,
+        })
+        .webp({ quality: name === "thumbnail" ? 78 : 84 })
+        .toBuffer({ resolveWithObject: true });
+      await storage.write(key, data, "image/webp");
+      variants[name] = { key, width: info.width, height: info.height };
+    }
+    await db.update(mediaAssets).set({ status: "ready", width: meta.width, height: meta.height, variants, updatedAt: new Date(), errorMessage: null }).where(eq(mediaAssets.id, asset.id));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("exceeds pixel limit")) {
+      throw new Error(`أبعاد الصورة تتجاوز الحد الآمن للمعالجة (${Math.floor(env.IMAGE_MAX_PIXELS / 1_000_000)} ميجابكسل)`);
+    }
+    throw error;
   }
-  await db.update(mediaAssets).set({ status: "ready", width: meta.width, height: meta.height, variants, updatedAt: new Date(), errorMessage: null }).where(eq(mediaAssets.id, asset.id));
 }
 
 async function inspectVideo(asset: typeof mediaAssets.$inferSelect) {
@@ -93,6 +135,12 @@ async function runJob(job: NonNullable<Awaited<ReturnType<typeof claimJob>>>) {
 
 async function main() {
   console.info(`Media worker started: ${workerId}`);
+  const recovered = await db
+    .update(mediaJobs)
+    .set({ status: "queued", attempts: 0, availableAt: new Date(), lockedAt: null, lockedBy: null, lastError: null, updatedAt: new Date() })
+    .where(and(eq(mediaJobs.status, "failed"), sql`${mediaJobs.lastError} like ${"%Input image exceeds pixel limit%"}`))
+    .returning({ id: mediaJobs.id });
+  if (recovered.length) console.info(`Requeued ${recovered.length} image job(s) that exceeded the previous pixel limit`);
   while (!stopping) {
     const job = await claimJob();
     if (!job) { await new Promise((resolve) => setTimeout(resolve, 2_000)); continue; }

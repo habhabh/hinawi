@@ -17,6 +17,7 @@ const envSchema = z.object({
   MEDIA_ROOT: z.string().default("/data/media"),
   MEDIA_PUBLIC_BASE_URL: z.string().default("/api/media"),
   IMAGE_MAX_SIZE_MB: z.coerce.number().positive().default(20),
+  IMAGE_MAX_PIXELS: z.coerce.number().int().positive().max(268_402_689).default(268_402_689),
   VIDEO_MAX_SIZE_MB: z.coerce.number().positive().default(150),
   S3_ENDPOINT: optionalUrl,
   S3_REGION: z.string().default("auto"),
