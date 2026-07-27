@@ -32,7 +32,7 @@ export const localStorage: StorageAdapter = {
   async write(key, body) {
     const target = resolveKey(key);
     await mkdir(path.dirname(target), { recursive: true });
-    const source = body instanceof Uint8Array ? Readable.from(body) : body;
+    const source = body instanceof Uint8Array ? Readable.from([body]) : body;
     await pipeline(source, createWriteStream(target, { flags: "wx", mode: 0o640 }));
   },
   async remove(key) {
