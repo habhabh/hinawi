@@ -1,5 +1,16 @@
 import { env } from "@/lib/env";
 
+const internalHosts = new Set(["0.0.0.0", "127.0.0.1", "localhost", "::1"]);
+
+export function isPublicDeploymentUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !internalHosts.has(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export function absoluteUrl(path: string): string {
   return new URL(path, env.APP_URL).toString();
 }

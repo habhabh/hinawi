@@ -5,7 +5,8 @@ import { toEnglishDigits, normalizePhone } from "@/lib/phone";
 import { buildWhatsappUrl, interpolateWhatsappMessage } from "@/lib/whatsapp";
 import { createSafeSlug, qrTokenSchema, analyticsEventSchema, sellerInputSchema } from "@/lib/validation/common";
 import { createStorageKey, canPublishProject, mediaCoverKey, validateMediaUpload } from "@/lib/media";
-import { projectCanonical } from "@/lib/seo";
+import { relativeRedirect, resolveQrSellerSlug } from "@/lib/qr";
+import { isPublicDeploymentUrl, projectCanonical } from "@/lib/seo";
 
 describe("أرقام الهاتف وواتساب", () => {
   it("يحوّل الأرقام العربية والفارسية", () => expect(toEnglishDigits("٠١٢۳۴۵6789")).toBe("0123456789"));
@@ -18,6 +19,16 @@ describe("أرقام الهاتف وواتساب", () => {
 describe("التحقق والأمان", () => {
   it("ينشئ slug آمنًا للاسم العربي", () => expect(createSafeSlug("أحمد العتيبي")).toMatch(/^item-[a-f0-9]{10}$/));
   it("يتحقق من QR طويل", () => expect(qrTokenSchema.safeParse("a".repeat(32)).success).toBe(true));
+  it("يصلح رابط بائع قديم غير صالح عند فتح QR", () => {
+    expect(resolveQrSellerSlug("---", "123e4567-e89b-12d3-a456-426614174000")).toBe("seller-123e4567-e89b-12d3-a456-426614174000");
+  });
+  it("يعيد QR إلى مسار نسبي ويبقي دومين الزائر", () => {
+    expect(relativeRedirect("/s/seller-id").headers.get("location")).toBe("/s/seller-id");
+  });
+  it("يرفض عنوان الحاوية كدومين إنتاج", () => {
+    expect(isPublicDeploymentUrl("https://0.0.0.0:3000")).toBe(false);
+    expect(isPublicDeploymentUrl("https://show.alhennawi.sa")).toBe(true);
+  });
   it("يرفض حدث تحليلات مجهولًا", () => expect(analyticsEventSchema.safeParse({ eventType: "sale" }).success).toBe(false));
   it("يتحقق من seller input", () => expect(sellerInputSchema.safeParse({ name: "أحمد", slug: "ahmed", isActive: true }).success).toBe(true));
   it("يمنع editor من إدارة المستخدمين", () => { expect(can("editor", "content:write")).toBe(true); expect(() => assertPermission("editor", "users:manage")).toThrow(); });

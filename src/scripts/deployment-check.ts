@@ -3,11 +3,12 @@ import { constants } from "node:fs";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { env } from "@/lib/env";
+import { isPublicDeploymentUrl } from "@/lib/seo";
 
 const failures: string[] = [];
 
 if (env.NODE_ENV !== "production") failures.push("NODE_ENV يجب أن يكون production");
-if (!env.APP_URL.startsWith("https://")) failures.push("APP_URL يجب أن يبدأ بـ https://");
+if (!isPublicDeploymentUrl(env.APP_URL)) failures.push("APP_URL يجب أن يكون دومين HTTPS عامًا، ولا يجوز استخدام localhost أو 0.0.0.0");
 if (env.BETTER_AUTH_URL !== env.APP_URL) failures.push("BETTER_AUTH_URL يجب أن يطابق APP_URL");
 if (!env.BETTER_AUTH_TRUSTED_ORIGINS.split(",").map((value) => value.trim()).includes(env.APP_URL)) {
   failures.push("BETTER_AUTH_TRUSTED_ORIGINS يجب أن يتضمن APP_URL");
