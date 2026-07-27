@@ -5,7 +5,7 @@ import { toEnglishDigits, normalizePhone } from "@/lib/phone";
 import { buildWhatsappUrl, interpolateWhatsappMessage } from "@/lib/whatsapp";
 import { createSafeSlug, qrTokenSchema, analyticsEventSchema, sellerInputSchema } from "@/lib/validation/common";
 import { createStorageKey, canPublishProject, mediaCoverKey, validateMediaUpload } from "@/lib/media";
-import { relativeRedirect, resolveQrSellerSlug } from "@/lib/qr";
+import { publicRequestUrl, resolveQrSellerSlug } from "@/lib/qr";
 import { isPublicDeploymentUrl, projectCanonical } from "@/lib/seo";
 
 describe("أرقام الهاتف وواتساب", () => {
@@ -22,8 +22,14 @@ describe("التحقق والأمان", () => {
   it("يصلح رابط بائع قديم غير صالح عند فتح QR", () => {
     expect(resolveQrSellerSlug("---", "123e4567-e89b-12d3-a456-426614174000")).toBe("seller-123e4567-e89b-12d3-a456-426614174000");
   });
-  it("يعيد QR إلى مسار نسبي ويبقي دومين الزائر", () => {
-    expect(relativeRedirect("/s/seller-id").headers.get("location")).toBe("/s/seller-id");
+  it("يبني تحويل QR من دومين proxy ويتجاهل عنوان الحاوية", () => {
+    const request = new Request("http://0.0.0.0:3000/q/token", {
+      headers: {
+        "x-forwarded-host": "show.alhennawi.sa",
+        "x-forwarded-proto": "https",
+      },
+    });
+    expect(publicRequestUrl(request, "/s/seller-id").toString()).toBe("https://show.alhennawi.sa/s/seller-id");
   });
   it("يرفض عنوان الحاوية كدومين إنتاج", () => {
     expect(isPublicDeploymentUrl("https://0.0.0.0:3000")).toBe(false);
