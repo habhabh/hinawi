@@ -32,6 +32,17 @@ test("المشاركة خارج topbar ووسائط المشروع بتمرير 
     return { snap: style.scrollSnapType, overflowX: style.overflowX, overflowY: style.overflowY };
   });
   expect(scrolling).toEqual({ snap: "y mandatory", overflowX: "hidden", overflowY: "auto" });
+  await expect(page.locator(".media-slide img")).toHaveCSS("object-fit", "cover");
+  const videos = page.locator(".media-slide video");
+  if (await videos.count() === 1) {
+    await videos.scrollIntoViewIfNeeded();
+    expect(await videos.evaluate((video) => ({
+      loop: (video as HTMLVideoElement).loop,
+      muted: (video as HTMLVideoElement).muted,
+      playsInline: (video as HTMLVideoElement).playsInline,
+    }))).toEqual({ loop: true, muted: true, playsInline: true });
+    await expect.poll(() => videos.evaluate((video) => (video as HTMLVideoElement).paused)).toBe(false);
+  }
 });
 
 test("شبكة البائع ثلاثة أعمدة وتفتح المشروع", async ({ page }) => {

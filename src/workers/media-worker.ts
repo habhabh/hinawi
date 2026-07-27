@@ -34,13 +34,14 @@ async function claimJob() {
 
 async function processImage(asset: typeof mediaAssets.$inferSelect) {
   const source = await toBuffer(await storage.read(asset.objectKey));
-  const meta = await sharp(source, { failOn: "error" }).metadata();
+  const imageOptions = { failOn: "none" as const, sequentialRead: true, limitInputPixels: 100_000_000 };
+  const meta = await sharp(source, imageOptions).metadata();
   if (!meta.width || !meta.height || !["jpeg", "png", "webp", "avif"].includes(meta.format || "")) throw new Error("صيغة الصورة الحقيقية غير مدعومة");
   const variants: Record<string, { key: string; width?: number; height?: number }> = {};
   for (const [name, width] of Object.entries({ thumbnail: 320, grid: 640, medium: 1280, large: 1920 })) {
     const key = `variants/${asset.id}/${name}.webp`;
     if (!(await storage.exists(key))) {
-      const output = await sharp(source).rotate().resize({ width, height: name === "thumbnail" ? width : undefined, fit: name === "thumbnail" ? "cover" : "inside", withoutEnlargement: true }).webp({ quality: name === "thumbnail" ? 78 : 84 }).toBuffer();
+      const output = await sharp(source, imageOptions).rotate().resize({ width, height: name === "thumbnail" ? width : undefined, fit: name === "thumbnail" ? "cover" : "inside", withoutEnlargement: true }).webp({ quality: name === "thumbnail" ? 78 : 84 }).toBuffer();
       await storage.write(key, output, "image/webp");
     }
     variants[name] = { key, width: Math.min(width, meta.width) };
