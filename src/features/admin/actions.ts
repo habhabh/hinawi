@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { requirePermission } from "@/lib/auth/session";
 import { categoryInputSchema, createSafeSlug, projectInputSchema, sellerInputSchema } from "@/lib/validation/common";
+import { deleteMediaAsset } from "@/features/admin/delete-media";
 
 const idSchema = z.string().uuid();
 
@@ -38,6 +39,7 @@ function refreshContent() {
   revalidatePath("/admin/sellers");
   revalidatePath("/admin/categories");
   revalidatePath("/admin/projects");
+  revalidatePath("/admin/media");
   revalidatePath("/", "layout");
 }
 
@@ -287,4 +289,14 @@ export async function archiveProjectAction(formData: FormData) {
   });
   refreshContent();
   redirect("/admin/projects");
+}
+
+export async function deleteMediaAction(formData: FormData) {
+  const session = await requirePermission("media:write");
+  const id = idSchema.parse(formData.get("id"));
+  const result = await deleteMediaAsset(id, session.user.id);
+  refreshContent();
+  if (result.status === "busy") redirect("/admin/media?busy=1");
+  if (result.status === "storage_failed") redirect("/admin/media?deleteError=1");
+  redirect("/admin/media?deleted=1");
 }

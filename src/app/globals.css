@@ -131,6 +131,7 @@ th { color: var(--muted); font-size: .78rem; }
 .danger-zone p { margin: .25rem 0 0; font-size: .8rem; }
 .linked-summary { margin-block: 1rem; }
 .save-notice { margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid color-mix(in srgb, var(--success), white 65%); border-radius: .85rem; background: color-mix(in srgb, var(--success), white 94%); color: var(--success); font-weight: 800; }
+.save-notice-error { border-color: color-mix(in srgb, var(--danger), white 65%); background: color-mix(in srgb, var(--danger), white 94%); color: var(--danger); }
 .media-uploader { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .media-uploader h2, .media-uploader p { margin: 0; }
 .media-uploader p { margin-top: .25rem; }

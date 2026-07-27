@@ -36,7 +36,11 @@ export const localStorage: StorageAdapter = {
     await pipeline(source, createWriteStream(target, { flags: "wx", mode: 0o640 }));
   },
   async remove(key) {
-    await unlink(resolveKey(key));
+    try {
+      await unlink(resolveKey(key));
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    }
   },
   publicUrl(key) {
     return `${env.MEDIA_PUBLIC_BASE_URL.replace(/\/$/, "")}/${key.split("/").map(encodeURIComponent).join("/")}`;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mediaStorageKeys } from "@/features/admin/delete-media";
 import { can, assertPermission } from "@/lib/permissions";
 import { toEnglishDigits, normalizePhone } from "@/lib/phone";
 import { buildWhatsappUrl, interpolateWhatsappMessage } from "@/lib/whatsapp";
@@ -28,4 +29,23 @@ describe("النشر وSEO", () => {
   it("يرفض مشروعًا بلا غلاف", () => expect(canPublishProject({ title: "مشروع", slug: "project", items: [{ isCover: false, status: "ready" }] }).valid).toBe(false));
   it("يرفض الوسائط تحت المعالجة", () => expect(canPublishProject({ title: "مشروع", slug: "project", items: [{ isCover: true, status: "processing" }] }).reasons).toContain("انتظر اكتمال معالجة الوسائط"));
   it("ينتج canonical مركزيًا بلا advisor", () => expect(projectCanonical("oak-room")).toMatch(/\/works\/oak-room$/));
+});
+
+describe("حذف الوسائط", () => {
+  it("يجمع الأصل والنسخ المسجلة والمتوقعة للحذف من التخزين", () => {
+    const id = "37f34eb0-d6e1-4569-b76a-5c2a36bd87a8";
+    const keys = mediaStorageKeys({
+      id,
+      objectKey: "originals/2026/07/image.jpg",
+      variants: {
+        custom: { key: `variants/${id}/custom.webp`, width: 900 },
+        thumbnail: { key: `variants/${id}/thumbnail.webp`, width: 320 },
+      },
+    });
+    expect(keys).toContain("originals/2026/07/image.jpg");
+    expect(keys).toContain(`variants/${id}/custom.webp`);
+    expect(keys).toContain(`variants/${id}/thumbnail.webp`);
+    expect(keys).toContain(`variants/${id}/poster.jpg`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
 });
