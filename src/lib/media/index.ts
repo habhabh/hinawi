@@ -29,6 +29,15 @@ export function validateMediaUpload(input: unknown, limits: { imageMb: number; v
   return parsed;
 }
 
+export function mediaCoverKey(asset: {
+  type: string | null;
+  objectKey: string | null;
+  variants?: Record<string, { key: string; width?: number; height?: number }> | null;
+}): string | null {
+  if (asset.type === "video") return asset.variants?.poster?.key ?? null;
+  return asset.variants?.grid?.key ?? asset.variants?.large?.key ?? asset.objectKey;
+}
+
 export function canPublishProject(input: {
   title: string;
   slug: string;

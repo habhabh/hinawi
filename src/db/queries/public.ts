@@ -12,6 +12,7 @@ import {
   sellers,
   siteSettings,
 } from "@/db/schema";
+import { mediaCoverKey } from "@/lib/media";
 import { storage } from "@/lib/storage";
 
 export const defaultSettings = {
@@ -99,6 +100,7 @@ export async function getSellerPage(slug: string, categorySlug?: string, cursor?
       projectYear: projects.projectYear,
       coverKey: mediaAssets.objectKey,
       coverType: mediaAssets.type,
+      coverVariants: mediaAssets.variants,
       itemCount: sql<number>`count(${projectItems.id}) over (partition by ${projects.id})`,
       sellerSortOrder: sellerProjects.sortOrder,
       publishedAt: projects.publishedAt,
@@ -117,7 +119,10 @@ export async function getSellerPage(slug: string, categorySlug?: string, cursor?
   return {
     seller: { ...seller, avatarUrl: seller.avatarKey ? storage.publicUrl(seller.avatarKey) : null },
     categories: availableCategories,
-    projects: visible.map((project) => ({ ...project, coverUrl: project.coverKey ? storage.publicUrl(project.coverKey) : null })),
+    projects: visible.map(({ coverKey, coverVariants, ...project }) => {
+      const resolvedCoverKey = mediaCoverKey({ type: project.coverType, objectKey: coverKey, variants: coverVariants });
+      return { ...project, coverUrl: resolvedCoverKey ? storage.publicUrl(resolvedCoverKey) : null };
+    }),
     nextCursor: hasMore ? visible.at(-1)?.id : null,
   };
 }
@@ -158,15 +163,22 @@ export async function getProjectBySlug(slug: string, includeDraft = false) {
     .innerJoin(categories, eq(categories.id, projectCategories.categoryId))
     .where(eq(projectCategories.projectId, project.id))
     .orderBy(desc(projectCategories.isPrimary), asc(projectCategories.sortOrder));
-  return {
-    ...project,
-    categories: projectCategoriesRows,
-    items: items.map((item) => ({
+  const resolvedItems = items.map((item) => {
+    const variantPosterKey = item.primaryType === "video" ? item.variants?.poster?.key : null;
+    const resolvedPosterKey = item.posterKey ?? variantPosterKey;
+    return {
       ...item,
       primaryUrl: storage.publicUrl(item.primaryKey),
       secondaryUrl: item.secondaryKey ? storage.publicUrl(item.secondaryKey) : null,
-      posterUrl: item.posterKey ? storage.publicUrl(item.posterKey) : null,
-    })),
+      posterUrl: resolvedPosterKey ? storage.publicUrl(resolvedPosterKey) : null,
+    };
+  });
+  const cover = resolvedItems.find((item) => item.isCover);
+  return {
+    ...project,
+    categories: projectCategoriesRows,
+    items: resolvedItems,
+    coverUrl: cover ? (cover.primaryType === "video" ? cover.posterUrl : cover.primaryUrl) : null,
   };
 }
 

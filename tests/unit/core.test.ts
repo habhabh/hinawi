@@ -4,7 +4,7 @@ import { can, assertPermission } from "@/lib/permissions";
 import { toEnglishDigits, normalizePhone } from "@/lib/phone";
 import { buildWhatsappUrl, interpolateWhatsappMessage } from "@/lib/whatsapp";
 import { createSafeSlug, qrTokenSchema, analyticsEventSchema, sellerInputSchema } from "@/lib/validation/common";
-import { createStorageKey, canPublishProject, validateMediaUpload } from "@/lib/media";
+import { createStorageKey, canPublishProject, mediaCoverKey, validateMediaUpload } from "@/lib/media";
 import { projectCanonical } from "@/lib/seo";
 
 describe("أرقام الهاتف وواتساب", () => {
@@ -29,6 +29,16 @@ describe("النشر وSEO", () => {
   it("يرفض مشروعًا بلا غلاف", () => expect(canPublishProject({ title: "مشروع", slug: "project", items: [{ isCover: false, status: "ready" }] }).valid).toBe(false));
   it("يرفض الوسائط تحت المعالجة", () => expect(canPublishProject({ title: "مشروع", slug: "project", items: [{ isCover: true, status: "processing" }] }).reasons).toContain("انتظر اكتمال معالجة الوسائط"));
   it("ينتج canonical مركزيًا بلا advisor", () => expect(projectCanonical("oak-room")).toMatch(/\/works\/oak-room$/));
+  it("يستخدم Poster الفيديو كغلاف بدل ملف MP4", () => {
+    expect(mediaCoverKey({
+      type: "video",
+      objectKey: "originals/project.mp4",
+      variants: { poster: { key: "variants/video/poster.jpg" } },
+    })).toBe("variants/video/poster.jpg");
+  });
+  it("لا يمرر ملف MP4 إلى مكوّن الصور عند غياب Poster", () => {
+    expect(mediaCoverKey({ type: "video", objectKey: "originals/project.mp4", variants: {} })).toBeNull();
+  });
 });
 
 describe("حذف الوسائط", () => {
